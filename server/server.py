@@ -95,10 +95,10 @@ class serial_port_read:
         for i in range(len(self.data_types)):
             data_value = static_data[(data_length_cumsum[i]):(data_length_cumsum[i+1])]
             value,  = struct.unpack(self.data_types[i], data_value)
-            self.data[i].append(value)    # we get the latest data point and append it to our array
-            print(value)
+            self.data[i].append(value)    # we get the latest data point and append it to our deque in the data array
+            print(value,  end="\t")
         # print("\r",self.data[1][-1],"\t",self.data[0][-1], end="")
-        print(" ")
+        print("\r",end="")
 
         # self.azimut = np.asarray(self.data[1])*np.pi/180
         # self.radius = np.asarray(self.data[0])
@@ -205,9 +205,9 @@ def main():
     # The data is arranged to form a set of data_types, each one with length (in bytes) data_length 
     # A stack of size stack_size_data_points data points is stored.
     stack_size_data_points = 50             # number of real time data points
-    num_data_bytes = 9                      # number of bytes of one data stream
-    data_types = ['H','H','f','B']          # ['H' 2 bytes unsigned short, 'f' 4 byte float, 'B' 1 byte unsigned char]
-    data_length = [2, 2, 4, 1]
+    data_types = ['H','H','f','h']          # ['H' 2 bytes unsigned short, 'f' 4 byte float]
+    data_length = [2, 2, 4, 2]              # Length in bytes of each data type
+    num_data_bytes = np.sum(data_length)    # number of bytes of one data stream
     
     s = serial_port_read(port_name, baud_rate, stack_size_data_points, num_data_bytes, data_types, data_length)   # initializes all required variables
     s.start_serial_reading()                                               # starts background thread

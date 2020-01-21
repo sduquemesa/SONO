@@ -70,7 +70,7 @@ volatile bool old_state_rotary_encoder   = false;
 void set_motor_rotation_speed(int motor_new_PWM_speed);
 void ISR_optical_encoder();
 void ISR_rotary_encoder();
-uint8_t PID_motor_speed(float current_angular_speed);
+int PID_motor_speed(float current_angular_speed);
 uint16_t ultrasound_distance_reading();
 void ultrasound_range_command();
 void establish_serial_connection();
@@ -83,7 +83,7 @@ struct serial_data {
     uint16_t distance;
     uint16_t angular_position;
     float current_angular_speed;
-    uint8_t motor_pwm_value;
+    int motor_pwm_value;
 }; 
   
 typedef struct serial_data serial_data; 
@@ -146,6 +146,7 @@ void loop() {
   static uint32_t old_change_counter_rotary_encoder   = 0;
   static uint32_t old_time_millis = millis();
   static uint32_t old_time_millis_ultrasound = millis();
+  static float angular_speed_rotary = 0;
   static bool read_write_ultrasound = true;     // true for writing ultrasound sensor, false for reading
 
   struct serial_data serial_data;
@@ -158,11 +159,12 @@ void loop() {
     
     noInterrupts();
     // speed variables in units of changes/ms
-    serial_data.current_angular_speed = (float)(change_counter_rotary_encoder - old_change_counter_rotary_encoder)/((float)(SPEED_MEASUREMENT_PERIOD));
+    angular_speed_rotary = (float)(change_counter_rotary_encoder - old_change_counter_rotary_encoder)/((float)(SPEED_MEASUREMENT_PERIOD));
     old_change_counter_rotary_encoder = change_counter_rotary_encoder;
     interrupts();
 
-    serial_data.motor_pwm_value = PID_motor_speed(serial_data.current_angular_speed*1000*9);
+    serial_data.current_angular_speed = angular_speed_rotary;
+    serial_data.motor_pwm_value = PID_motor_speed(angular_speed_rotary*1000*9);
 
     old_time_millis = millis();
   }
@@ -223,7 +225,7 @@ uint16_t ultrasound_distance_reading() {
 
 }
 
-uint8_t PID_motor_speed(float current_angular_speed){
+int PID_motor_speed(float current_angular_speed){
   // Does PID control over the motor speed and change PWM output value accordingly
   // Input: motor current angular speed in degrees/sec
 
@@ -245,7 +247,7 @@ uint8_t PID_motor_speed(float current_angular_speed){
   static float old_time_millis = millis();
 
   // Motor speed PWM
-  static uint8_t motor_pwm_value = 0;
+  static int motor_pwm_value = 0;
 
 
   time_interval = (millis()-old_time_millis)/1000;
@@ -255,14 +257,14 @@ uint8_t PID_motor_speed(float current_angular_speed){
 
   control_signal = K_p*error + K_i*integral + K_d*differential;
 
-  motor_pwm_value = (uint8_t)(motor_pwm_value + control_signal);
+  motor_pwm_value = round(motor_pwm_value + control_signal);
   analogWrite(ENABLE_MOTOR_PWD_pin, abs(motor_pwm_value));
 
   old_error = error;
   old_integral = integral;
   old_time_millis = millis();
 
-  return motor_pwm_value;
+  return abs(motor_pwm_value);
 
 }
 
@@ -332,14 +334,14 @@ void establish_serial_connection() {
 
 void send_serial_data(struct serial_data *serial_data){
 
-  byte* byteData1 = (byte*)(serial_data->distance);
-  byte* byteData2 = (byte*)(serial_data->angular_position);
+  byte* byteData1 = (byte*) (&(serial_data->distance));
+  byte* byteData2 = (byte*) (&(serial_data->angular_position));
   byte* byteData3 = (byte*) (&(serial_data->current_angular_speed));
-  byte* byteData4 = (byte*)(serial_data->motor_pwm_value);
-  byte buf[9] = {byteData1[0], byteData1[1],
+  byte* byteData4 = (byte*) (&(serial_data->motor_pwm_value));
+  byte buf[10] = {byteData1[0], byteData1[1],
                  byteData2[0], byteData2[1],
                  byteData3[0], byteData3[1], byteData3[2], byteData3[3],
-                 byteData4[0]};
-  Serial.write(buf, 9);
+                 byteData4[0], byteData4[1]};
+  Serial.write(buf, 10);
 
 }
