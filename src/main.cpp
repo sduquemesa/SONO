@@ -175,7 +175,7 @@ void loop() {
 
       if ( (millis()-old_time_millis_ultrasound) > (SENSOR_READING_PERIOD) ) {
 
-        serial_data.distance = 800;
+        serial_data.distance = 0;
         ultrasound_range_command();
         read_write_ultrasound = false;    // set to read ultrasound
         old_time_millis_ultrasound = millis();
@@ -339,9 +339,9 @@ void send_serial_data(struct serial_data *serial_data){
   byte* byteData3 = (byte*) (&(serial_data->current_angular_speed));
   byte* byteData4 = (byte*) (&(serial_data->motor_pwm_value));
   byte buf[10] = {byteData1[0], byteData1[1],
-                 byteData2[0], byteData2[1],
-                 byteData3[0], byteData3[1], byteData3[2], byteData3[3],
-                 byteData4[0], byteData4[1]};
+                  byteData2[0], byteData2[1],
+                  byteData3[0], byteData3[1], byteData3[2], byteData3[3],
+                  byteData4[0], byteData4[1]};
   Serial.write(buf, 10);
 
 }
