@@ -9,6 +9,7 @@ import struct
 import copy
 import pandas as pd
 import numpy as np
+from numpy_ringbuffer import RingBuffer
 from scipy import interpolate
 import mido
 import sys
@@ -28,10 +29,9 @@ class serial_port_read:
         # self.numData = numData              # TO ERASE!
         self.rawdata_bytes = bytearray(num_data_bytes)
 
-        self.data = []
-
-        for i in data_types:   # give an array for each type of data and store them in a list
-            self.data.append(collections.deque([0] * stack_size, maxlen=stack_size))
+        # give an array for each type of data and store them in a ring buffer of size len(self.data_types)
+        self.data = RingBuffer(capacity = stack_size, dtype=(float, (len(self.data_types),)))
+        self.data_to_append = np.zeros( shape=(len(self.data_types),) )
 
         self.is_run = True
         self.is_receiving = False
@@ -94,13 +94,14 @@ class serial_port_read:
         data_length_cumsum = list(itertools.accumulate([0] + self.data_length))
         for i in range(len(self.data_types)):
             data_value = static_data[(data_length_cumsum[i]):(data_length_cumsum[i+1])]
-            value,  = struct.unpack(self.data_types[i], data_value)
-            self.data[i].append(value)    # we get the latest data point and append it to our deque in the data array
-            print(value,  end="\t")
-        print("\r",end="")
+            self.data_to_append[i],  = struct.unpack(self.data_types[i], data_value)
+            
+        self.data.append(self.data_to_append)
+        
+        print("\r",self.data_to_append,  end="\t")
 
-        # self.radius = np.asarray(self.data[0])
-        # self.angle = np.asarray(self.data[1])*np.pi/180
+        self.radius = np.asarray(self.data[0])
+        self.angle = np.asarray(self.data[1])*np.pi/180
 
         # if (figNumber == 1):
 
