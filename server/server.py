@@ -59,9 +59,9 @@ class serial_port_read:
             print("Error connecting to MIDI port:", self.mido_outports[1])
             sys.exit(1)
 
-        #[F2,G#2, C3, C#3, D#3, F3, G#3]
-        self.notes = [41, 44, 48, 49, 51, 53, 56]
-        self.note_status = [False, False, False, False, False, False, False]
+        #[F#2,G#2, C3, C#3, D#3, F3, G#3, A#4] C# Major scale
+        self.notes = [42, 44, 48, 49, 51, 53, 58, 60]
+        self.note_status = [False, False, False, False, False, False, False, False]
 
         print('\nTrying to connect to: ' + str(port_name) + ' at ' + str(baud_rate) + ' BAUD.')
         try:
@@ -128,48 +128,37 @@ class serial_port_read:
             for rect, h in zip(rects[0],self.N_azimuth/self.N_azimuth.sum()):
                 rect.set_height(h)
 
-            # self.N_azimuth, self.bins_azimut, self.patches_azimuth = ax[0].hist(self.data[1],bins=range(-4,365-4,9))
-            # self.N_radius, self.bins_radius, self.patches_radius = ax[1].hist(self.radius,bins=np.linspace(20,300,8), weights=self.weights_radius)
-            # ax[1].set_ylim(0,1)
 
+            self.N_radius, self.bins_radius = np.histogram(self.radius, bins=np.linspace(20,300,9))
+            self.fracs = self.N_radius/self.N_radius.sum()
 
-            # We'll color code by height, but you could use any scalar
-            # self.fracs = self.N_radius
+            for rect, h in zip(rects[1], self.fracs):
+                rect.set_height(h)         
 
-            # we need to normalize the data to 0..1 for the full range of the colormap
-            # self.norm = colors.Normalize(self.fracs.min(), self.fracs.max())
+            for i in range(0,len(self.fracs)):
 
-            # Now, we'll loop through our objects and set the color of each accordingly
-            # for thisfrac, thispatch in zip(self.fracs, self.patches_radius):
-            #     color = plt.cm.gist_yarg(self.norm(thisfrac))
-            #     thispatch.set_facecolor(color)
-
-            
-
-            # for i in range(0,np.shape(self.fracs)[0]):
-
-            #     if (self.fracs[i] > 0.00001 ):
+                if (self.fracs[i] > 0.00001 ):
                     
-            #         if (self.note_status[i] == False):
+                    if (self.note_status[i] == False):
 
-            #             self.midi_msg = mido.Message('note_on', note=self.notes[i], channel=i)
-            #             self.midi_outport.send(self.midi_msg)
-            #             print("Note on", self.notes[i])
-            #             self.note_status[i] = True
+                        self.midi_msg = mido.Message('note_on', note=self.notes[i], channel=i)
+                        self.midi_outport.send(self.midi_msg)
+                        print("Note on", self.notes[i])
+                        self.note_status[i] = True
 
-            #         # self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(self.N_radius[i]*127), time=0)
-            #         self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(127), time=0)
-            #         # self.midi_outport.send(self.midi_msg)
-            #         # print('CC channel',i+1,'value',int(self.N_radius[i]*127))
+                    self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(self.fracs[i]*127), time=0)
+                    # self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(127), time=0)
+                    self.midi_outport.send(self.midi_msg)
+                    print('CC channel',i+1,'value',int(self.fracs[i]*127))
 
-            #     elif (self.fracs[i] < 0.00001 ):
+                elif (self.fracs[i] < 0.00001 ):
 
-            #         if (self.note_status[i] == True):
+                    if (self.note_status[i] == True):
 
-            #             self.midi_msg = mido.Message('note_off', note=self.notes[i], channel=i)
-            #             self.midi_outport.send(self.midi_msg)
-            #             # print("Note off", self.notes[i])
-            #             self.note_status[i] = False
+                        self.midi_msg = mido.Message('note_off', note=self.notes[i], channel=i)
+                        self.midi_outport.send(self.midi_msg)
+                        print("Note off", self.notes[i])
+                        self.note_status[i] = False
                 
     def close(self):
         self.is_run = False
@@ -227,11 +216,12 @@ def main():
     rects1 = ax1.bar(center, hist, align='center', width=width)
     ax1.set_ylim(0,1)
 
-    hist, bins = np.histogram([],bins=np.linspace(20,300,8))
+    hist, bins = np.histogram([],bins=np.linspace(20,300,9))
     width = 0.75 * (bins[1] - bins[0])
     center = (bins[:-1] + bins[1:]) / 2
 
     rects2 = ax2.bar(center, hist, align='center', width=width)
+    ax2.set_ylim(0,1)
 
     
     anim = animation.FuncAnimation(fig, s.get_serial_data, fargs=(ax, 1, stack_size_data_points, (rects1, rects2)), interval=pltInterval)    # fargs has to be a tuple
