@@ -108,7 +108,7 @@ class serial_port_read:
             ax.clear()            
 
             # define binning: 0m to 4m with steps of 12.5cm (32 steps)
-            self.rbins = np.linspace(20,400, 40)
+            self.rbins = np.linspace(0,400, 40)
             self.abins = np.linspace(-0.1,2*np.pi-0.1, 40)
 
             self.hist, _ , _ = np.histogram2d(self.angle, self.radius, bins=(self.abins, self.rbins), density=True)
@@ -126,29 +126,24 @@ class serial_port_read:
             ax[0].clear()
             ax[1].clear()
 
-            # if np.shape(self.radius[(self.radius>20) & (self.radius<300)])[0] > 0 :
-            #     self.weights_radius = np.ones_like(self.radius)/np.max(self.radius[(self.radius>20) & (self.radius<300)])
-            # else:
-            #     self.weights_radius = np.ones_like(self.radius)
+            # self.weights_radius = np.ones_like(self.radius)/maxDataLength
+            self.weights_radius = np.ones_like(self.radius)/np.max(self.radius)
 
             self.N_azimuth, self.bins_azimut, self.patches_azimuth = ax[0].hist(self.data[1],bins=range(-4,365-4,9))
-            # self.N_radius, self.bins_radius, self.patches_radius = ax[1].hist(self.radius,bins=np.linspace(20,300,8), weights=self.weights_radius)
-            results, edges = np.histogram(self.radius,bins=np.linspace(20,300,8), normed=True)
-            binWidth = edges[1] - edges[0]
-            ax[1].bar(edges[:-1], results*binWidth, binWidth)
-            ax[1].set_ylim(0,1)
-            self.fracs = results*binWidth
+            self.N_radius, self.bins_radius, self.patches_radius = ax[1].hist(self.radius,bins=np.linspace(20,300,8), weights=self.weights_radius)
+            # ax[1].set_ylim(0,1)
+
 
             # We'll color code by height, but you could use any scalar
-            # self.fracs = self.N_radius
+            self.fracs = self.N_radius
 
             # we need to normalize the data to 0..1 for the full range of the colormap
-            # self.norm = colors.Normalize(self.fracs.min(), self.fracs.max())
+            self.norm = colors.Normalize(self.fracs.min(), self.fracs.max())
 
             # Now, we'll loop through our objects and set the color of each accordingly
-            # for thisfrac, thispatch in zip(self.fracs, self.patches_radius):
-                # color = plt.cm.gist_yarg(self.norm(thisfrac))
-                # thispatch.set_facecolor(color)
+            for thisfrac, thispatch in zip(self.fracs, self.patches_radius):
+                color = plt.cm.gist_yarg(self.norm(thisfrac))
+                thispatch.set_facecolor(color)
 
             
 
@@ -163,10 +158,10 @@ class serial_port_read:
                         print("Note on", self.notes[i])
                         self.note_status[i] = True
 
-                    self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(self.N_radius[i]*127), time=0)
-                    # self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(127), time=0)
-                    self.midi_outport.send(self.midi_msg)
-                    print('CC channel',i+1,'value',int(self.N_radius[i]*127))
+                    # self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(self.N_radius[i]*127), time=0)
+                    self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(127), time=0)
+                    # self.midi_outport.send(self.midi_msg)
+                    # print('CC channel',i+1,'value',int(self.N_radius[i]*127))
 
                 elif (self.fracs[i] < 0.00001 ):
 
@@ -174,7 +169,7 @@ class serial_port_read:
 
                         self.midi_msg = mido.Message('note_off', note=self.notes[i], channel=i)
                         self.midi_outport.send(self.midi_msg)
-                        print("Note off", self.notes[i])
+                        # print("Note off", self.notes[i])
                         self.note_status[i] = False
                 
     def close(self):
@@ -188,8 +183,8 @@ class serial_port_read:
 
 def main():
 
-    # port_name = 'COM10'
-    port_name = 'COM9'
+    port_name = 'COM6'
+    # port_name = 'COM9'
     # port_name = '/dev/ttyUSB0'
 
     baud_rate = 115200
