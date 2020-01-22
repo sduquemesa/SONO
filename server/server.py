@@ -22,9 +22,6 @@ class serial_port_read:
 
     def __init__(self, port_name = 'COM6', baud_rate = 9600, stack_size = 100, num_data_bytes = 2, data_types = [], data_length = []):
 
-        self.min_sensor_distance = 20
-        self.max_sensor_distance = 400
-
         self.port = port_name
         self.baud = baud_rate
         self.stack_size = stack_size
@@ -45,8 +42,10 @@ class serial_port_read:
         self.previous_timer = 0
         # self.csvData = []
 
-        # define binning for polar heatmap: 0m to 4m with steps of 12.5cm (32 steps)
-        self.radius_bins_heatmap = np.linspace(self.min_sensor_distance,self.max_sensor_distance, 40)
+        # define binning for polar heatmap
+        self.min_sensor_distance = 20
+        self.max_sensor_distance = 200
+        self.radius_bins_heatmap = np.linspace(self.min_sensor_distance,self.max_sensor_distance, 16)
         self.angle_bins_heatmap = np.linspace(-0.1,2*np.pi-0.1, 40)
 
         ### MIDI Settings ###
@@ -59,9 +58,13 @@ class serial_port_read:
             print("Error connecting to MIDI port:", self.mido_outports[1])
             sys.exit(1)
 
-        #[F#2,G#2, C3, C#3, D#3, F3, G#3, A#4] C# Major scale
+        #[F2,G#2, C3, C#3, D#3, F3] C# Major scale
+        # self.notes = [41, 44, 48, 49, 51, 53, 58, 60]
+        # self.note_status = [False]*len(self.notes)
+
+        #[F#2,G#2, C3, C#3, D#3, F3, G#3, A#4]
         self.notes = [42, 44, 48, 49, 51, 53, 58, 60]
-        self.note_status = [False, False, False, False, False, False, False, False]
+        self.note_status = [False]*len(self.notes)
 
         print('\nTrying to connect to: ' + str(port_name) + ' at ' + str(baud_rate) + ' BAUD.')
         try:
@@ -107,6 +110,7 @@ class serial_port_read:
             self.data_to_append[i],  = struct.unpack(self.data_types[i], data_value)
 
         # print("\r",self.data_to_append,  end="\t")
+
         self.data.append(self.data_to_append)
 
         self.radius = self.data[:,0]
@@ -124,16 +128,22 @@ class serial_port_read:
         if (figNumber == 2):
 
             self.N_azimuth, self.bins_azimut = np.histogram(self.angle*180/np.pi, bins=range(-4,365-4,9))
-
-            for rect, h in zip(rects[0],self.N_azimuth/self.N_azimuth.sum()):
+         
+            for rect, h in zip(rects[0],self.N_azimuth):
                 rect.set_height(h)
 
+            #automate to take the number of notes
+            self.N_radius, self.bins_radius = np.histogram(self.radius, bins=np.linspace(20,200,8))
 
-            self.N_radius, self.bins_radius = np.histogram(self.radius, bins=np.linspace(20,300,9))
-            self.fracs = self.N_radius/self.N_radius.sum()
-
-            for rect, h in zip(rects[1], self.fracs):
-                rect.set_height(h)         
+            if self.N_radius.sum() > 0:
+                # self.fracs = self.N_radius/self.N_radius.sum()
+                self.fracs = self.N_radius/maxDataLength
+                for rect, h in zip(rects[1], self.fracs):
+                    rect.set_height(h)   
+            else:
+                for rect in rects[1]:
+                    rect.set_height(0)
+                self.fracs = self.N_radius
 
             for i in range(0,len(self.fracs)):
 
@@ -143,13 +153,13 @@ class serial_port_read:
 
                         self.midi_msg = mido.Message('note_on', note=self.notes[i], channel=i)
                         self.midi_outport.send(self.midi_msg)
-                        print("Note on", self.notes[i])
+                        # print("Note on", self.notes[i])
                         self.note_status[i] = True
 
                     self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(self.fracs[i]*127), time=0)
                     # self.midi_msg = mido.Message('control_change', channel=i, control=0, value=int(127), time=0)
                     self.midi_outport.send(self.midi_msg)
-                    print('CC channel',i+1,'value',int(self.fracs[i]*127))
+                    # print('CC channel',i+1,'value',int(self.fracs[i]*127))
 
                 elif (self.fracs[i] < 0.00001 ):
 
@@ -157,7 +167,7 @@ class serial_port_read:
 
                         self.midi_msg = mido.Message('note_off', note=self.notes[i], channel=i)
                         self.midi_outport.send(self.midi_msg)
-                        print("Note off", self.notes[i])
+                        # print("Note off", self.notes[i])
                         self.note_status[i] = False
                 
     def close(self):
@@ -171,9 +181,7 @@ class serial_port_read:
 
 def main():
 
-    plt.switch_backend('QT4Agg') #default on my system
-    print(matplotlib.get_backend())
-    # port_name = 'COM10'
+    # port_name = 'COM6'
     port_name = 'COM9'
     # port_name = '/dev/ttyUSB0'
 
@@ -182,7 +190,7 @@ def main():
     # Arduino sends a stream of data consisting of 1,...,num_data_bytes bytes.
     # The data is arranged to form a set of data_types, each one with length (in bytes) data_length 
     # A stack of size stack_size_data_points data points is stored.
-    stack_size_data_points = 50             # number of real time data points
+    stack_size_data_points = 100             # number of real time data points
     data_types = ['H','H','f','h']          # ['H' 2 bytes unsigned short, 'f' 4 byte float]
     data_length = [2, 2, 4, 2]              # Length in bytes of each data type
     num_data_bytes = np.sum(data_length)    # number of bytes of one data stream
@@ -214,9 +222,10 @@ def main():
     center = (bins[:-1] + bins[1:]) / 2
 
     rects1 = ax1.bar(center, hist, align='center', width=width)
-    ax1.set_ylim(0,1)
+    ax1.set_ylim(0,5)
 
-    hist, bins = np.histogram([],bins=np.linspace(20,300,9))
+    # automate to take the number of notes
+    hist, bins = np.histogram([],bins=np.linspace(20,200,8))
     width = 0.75 * (bins[1] - bins[0])
     center = (bins[:-1] + bins[1:]) / 2
 
