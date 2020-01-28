@@ -188,13 +188,12 @@ void loop() {
         serial_data.distance = ultrasound_distance_reading();
         read_write_ultrasound = true;     // set to write ultrasound
         old_time_millis_ultrasound = millis();
+        serial_data.angular_position = (change_counter_rotary_encoder%((uint32_t)40))*((uint32_t)9);
+        send_serial_data(&serial_data);
 
       }
 
     }
-
-    serial_data.angular_position = (change_counter_rotary_encoder%((uint32_t)40))*((uint32_t)9);
-    send_serial_data(&serial_data);
 
   }
 
@@ -339,9 +338,9 @@ void send_serial_data(struct serial_data *serial_data){
   byte* byteData3 = (byte*) (&(serial_data->current_angular_speed));
   byte* byteData4 = (byte*) (&(serial_data->motor_pwm_value));
   byte buf[10] = {byteData1[0], byteData1[1],
-                  byteData2[0], byteData2[1],
-                  byteData3[0], byteData3[1], byteData3[2], byteData3[3],
-                  byteData4[0], byteData4[1]};
+                 byteData2[0], byteData2[1],
+                 byteData3[0], byteData3[1], byteData3[2], byteData3[3],
+                 byteData4[0], byteData4[1]};
   Serial.write(buf, 10);
 
 }
