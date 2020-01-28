@@ -132,14 +132,8 @@ class serial_port_read:
             for rect, h in zip(rects[0],self.N_azimuth):
                 rect.set_height(h)
 
-<<<<<<< HEAD
-            self.N_azimuth, self.bins_azimut, self.patches_azimuth = ax[0].hist(self.data[1],bins=range(-4,365-4,9))
-            self.N_radius, self.bins_radius, self.patches_radius = ax[1].hist(self.radius,bins=np.linspace(20,300,8), weights=self.weights_radius)
-            # ax[1].set_ylim(0,1)
-=======
             #automate to take the number of notes
             self.N_radius, self.bins_radius = np.histogram(self.radius, bins=np.linspace(20,200,8))
->>>>>>> old-project-state
 
             if self.N_radius.sum() > 0:
                 # self.fracs = self.N_radius/self.N_radius.sum()
