@@ -181,8 +181,8 @@ class serial_port_read:
 
 def main():
 
-    # port_name = 'COM6'
-    port_name = 'COM9'
+    port_name = 'COM6'
+    # port_name = 'COM9'
     # port_name = '/dev/ttyUSB0'
 
     baud_rate = 115200
